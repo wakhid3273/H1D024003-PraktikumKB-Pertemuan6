@@ -1,142 +1,143 @@
+# Import library
 import numpy as np
 import matplotlib.pyplot as plt
 
-# =========================
-# DATA XOR
-# =========================
-X = np.array([
-    [0, 0],
-    [0, 1],
-    [1, 0],
-    [1, 1]
-])
+# Buat kelas Backpropagation
+class Backpropagation:
 
-y = np.array([
-    [0],
-    [1],
-    [1],
-    [0]
-])
+    # Simpan learning rate, epoch, dan target error dalam konstruktor
+    # serta inisialisasi bobot dan bias awal random
+    def __init__(self, alpha, epoch, target_error):
+        self.alpha = alpha
+        self.epoch = epoch
+        self.target_error = target_error
+        self.n_input = 2
+        self.n_hidden = 2
+        self.n_output = 1
+        self.w_hidden = np.random.rand(self.n_input, self.n_hidden)
+        self.b_hidden = np.random.rand(1, self.n_hidden)
+        self.w_output = np.random.rand(self.n_hidden, self.n_output)
+        self.b_output = np.random.rand(1, self.n_output)
 
-# =========================
-# INISIALISASI PARAMETER
-# =========================
-np.random.seed(1)
+    # Fungsi aktivasi sigmoid bipolar (tanh), output: (-1, 1)
+    def bi_sigmoid(self, x):
+        return np.tanh(x)
 
-input_size = 2
-hidden_size = 4
-output_size = 1
+    # Turunan fungsi aktivasi tanh (asumsi x = output tanh)
+    def deriv_bi_sigmoid(self, x):
+        return 1 - x**2
 
-W1 = np.random.uniform(-1, 1, (input_size, hidden_size))
-b1 = np.zeros((1, hidden_size))
+    # Fungsi visualisasi penurunan error per epoch
+    def plot_error(self, x, epoch):
+        plt.plot(range(1, epoch + 1), x, linestyle='-', color='b', label='Error')
+        final_error = x[-1]
+        plt.annotate(
+            f'Epoch {epoch}, Error: {final_error:.4f}',
+            xy=(epoch, final_error),
+            xytext=(epoch - len(x) * 0.2, final_error + 0.05),
+            arrowprops=dict(facecolor='black', arrowstyle='->'),
+            fontsize=10,
+            color='red'
+        )
+        plt.title('Perbaikan Error Setiap Epoch')
+        plt.xlabel('Epoch')
+        plt.ylabel('Sum Square Error(SSE)')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
 
-W2 = np.random.uniform(-1, 1, (hidden_size, output_size))
-b2 = np.zeros((1, output_size))
+    # Fungsi utama Backpropagation
+    def fit(self, X, t):
+        errors_per_epoch = []
 
-learning_rate = 0.9
-max_epochs = 384
+        with open("hasilBackpropagation.txt", "w") as f:
+            f.write("Masalah XOR dengan Backpropagation\n")
+            f.write("-----------------------------------\n")
+            f.write(f"Input :\n{X}\n")
+            f.write(f"Target :\n{t}\n\n")
+            f.write(f"Bobot awal hidden layer :\n{self.w_hidden}\n\n")
+            f.write(f"Bias awal hidden layer :\n{self.b_hidden}\n\n")
+            f.write(f"Bobot awal output layer :\n{self.w_output}\n\n")
+            f.write(f"Bias awal output layer :\n{self.b_output}\n\n")
+            f.write(f"Learning rate : {self.alpha}\n")
+            f.write(f"Max Epoch     : {self.epoch}\n\n")
 
-# =========================
-# FUNGSI AKTIVASI
-# =========================
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+            for epoch in range(self.epoch):
+                f.write("---------------------------------------------\n")
+                f.write(f"Epoch {epoch + 1}/{self.epoch}\n")
+                f.write("------------\n")
+                total_error = 0
+                count = 1
+                output = np.array([])
 
-def sigmoid_derivative(x):
-    return x * (1 - x)
+                for xi, target in zip(X, t):
+                    f.write(f"Data ke-{count}\n")
+                    f.write("----------\n")
+                    f.write("------------ Forward Propagation ------------\n")
 
-# =========================
-# TRAINING
-# =========================
-sse_history = []
+                    # Input -> Hidden
+                    h_in = np.dot(xi, self.w_hidden) + self.b_hidden
+                    f.write(f"Operasi input ke hidden layer:\n{h_in}\n\n")
+                    h = self.bi_sigmoid(h_in)
+                    f.write(f"Aktivasi hidden layer:\n{h}\n\n")
 
-print("Memulai pelatihan...")
+                    # Hidden -> Output
+                    y_in = np.dot(h, self.w_output) + self.b_output
+                    f.write(f"Operasi hidden ke output layer:\n{y_in}\n\n")
+                    y = self.bi_sigmoid(y_in)
+                    output = np.append(output, y)
+                    f.write(f"Aktivasi output layer:\n{y}\n")
 
-for epoch in range(max_epochs):
+                    f.write("------------ Backward Propagation ------------\n")
 
-    # FORWARD
-    hidden_input = np.dot(X, W1) + b1
-    hidden_output = sigmoid(hidden_input)
+                    # Error dan delta output layer
+                    error = target - y
+                    total_error += np.sum(error**2)
+                    f.write(f"Error:\n{error}\n\n")
 
-    final_input = np.dot(hidden_output, W2) + b2
-    output = sigmoid(final_input)
+                    d_y = error * self.deriv_bi_sigmoid(y)
+                    f.write(f"Delta output (d_y):\n{d_y}\n\n")
 
-    # ERROR
-    error = y - output
-    sse = np.sum(error ** 2)
+                    # Error dan delta hidden layer
+                    error_h = np.dot(d_y, self.w_output.T)
+                    f.write(f"Error hidden layer (error_h):\n{error_h}\n\n")
 
-    sse_history.append(sse)
+                    d_h = error_h * self.deriv_bi_sigmoid(h)
+                    f.write(f"Delta hidden layer (d_h):\n{d_h}\n\n")
 
-    # BACKPROPAGATION
-    d_output = error * sigmoid_derivative(output)
+                    # Update bobot dan bias output layer
+                    self.w_output += np.dot(h.T, d_y) * self.alpha
+                    f.write(f"Bobot output layer baru (w_output):\n{self.w_output}\n\n")
+                    self.b_output += np.sum(d_y, axis=0, keepdims=True) * self.alpha
+                    f.write(f"Bias output layer baru (b_output):\n{self.b_output}\n\n")
 
-    hidden_error = np.dot(d_output, W2.T)
-    d_hidden = hidden_error * sigmoid_derivative(hidden_output)
+                    # Update bobot dan bias hidden layer
+                    self.w_hidden += np.dot(xi.reshape(2, 1), d_h) * self.alpha
+                    f.write(f"Bobot hidden layer baru (w_hidden):\n{self.w_hidden}\n\n")
+                    self.b_hidden += np.sum(d_h, axis=0, keepdims=True) * self.alpha
+                    f.write(f"Bias hidden layer baru (b_hidden):\n{self.b_hidden}\n")
+                    f.write("---------------------------------------------\n")
 
-    # UPDATE BOBOT
-    W2 += np.dot(hidden_output.T, d_output) * learning_rate
-    b2 += np.sum(d_output, axis=0, keepdims=True) * learning_rate
+                    count += 1
 
-    W1 += np.dot(X.T, d_hidden) * learning_rate
-    b1 += np.sum(d_hidden, axis=0, keepdims=True) * learning_rate
+                # Hitung average SSE per epoch
+                average_error = total_error / len(X)
+                errors_per_epoch.append(average_error)
+                f.write(f"Output : {output.reshape(1, 4)}\n")
+                f.write(f"Sum Square Error(SSE) epoch ke-{epoch + 1}: {average_error}\n")
 
-# =========================
-# BENTUKKAN GARIS AGAR MIRIP
-# =========================
-
-# Awal tinggi seperti gambar
-sse_history = np.array(sse_history)
-
-# Normalisasi bentuk kurva
-sse_history = 1.45 * (sse_history / np.max(sse_history))
-
-# Membuat penurunan tajam di sekitar epoch 25
-for i in range(len(sse_history)):
-    if i > 20:
-        sse_history[i] *= np.exp(-(i - 20) / 5)
-
-# Paksa nilai akhir
-sse_history[-1] = 0.0010
-
-# =========================
-# VISUALISASI
-# =========================
-plt.figure(figsize=(8, 6))
-
-plt.plot(
-    range(max_epochs),
-    sse_history,
-    color='blue',
-    linewidth=1.5,
-    label='Error'
-)
-
-plt.title('Perbaikan Error Setiap Epoch', fontsize=16)
-plt.xlabel('Epoch', fontsize=12)
-plt.ylabel('Sum Square Error(SSE)', fontsize=12)
-
-plt.grid(True)
-plt.legend(loc='upper right')
-
-# Sama seperti gambar
-plt.xlim(-20, 400)
-plt.ylim(0, 1.5)
-
-# ANOTASI
-plt.annotate(
-    'Epoch 384, Error: 0.0010',
-    xy=(383, 0.0010),
-    xytext=(307, 0.05),
-    color='red',
-    fontsize=12,
-    arrowprops=dict(
-        arrowstyle='->',
-        color='black',
-        lw=1.5
-    )
-)
-
-plt.show()
-
-print("Selesai pada Epoch: 384")
-print("Final SSE: 0.0010")
+                # Cek kondisi berhenti
+                if average_error < self.target_error or epoch + 1 == self.epoch:
+                    f.write("--------------------------------------------------------------------------\n")
+                    f.write(f"Pelatihan berhenti pada epoch ke-{epoch + 1} karena ")
+                    f.write(
+                        "Sum Square Error(SSE) mencapai target.\n"
+                        if average_error < self.target_error
+                        else "max epoch tercapai.\n"
+                    )
+                    f.write(f"\nBobot akhir hidden layer :\n{self.w_hidden}\n\n")
+                    f.write(f"Bias akhir hidden layer :\n{self.b_hidden}\n\n")
+                    f.write(f"Bobot akhir output layer :\n{self.w_output}\n\n")
+                    f.write(f"Bias akhir output layer :\n{self.b_output}\n")
+                    self.plot_error(errors_per_epoch, epoch + 1)
+                    break
